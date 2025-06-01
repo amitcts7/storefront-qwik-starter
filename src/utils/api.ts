@@ -49,6 +49,14 @@ const execute = async <R, V = Record<string, any>>(
 	// DELETE THIS
 	// const response: ResponseProps<R> = await executeRequest(requestOptions, options.apiUrl!);
 
+	if (!response.data) {
+		console.warn('[execute] Response data is undefined:', response);
+		return {} as R;
+	}
+	if (typeof response.data === 'object' && 'activeOrder' in response.data && !response.data.activeOrder) {
+		console.warn('[execute] activeOrder is undefined in response.data:', response.data);
+	}
+
 	if (isBrowser && response.token) {
 		setCookie(AUTH_TOKEN, response.token, 365);
 	}
@@ -69,14 +77,16 @@ const executeOnTheServer = server$(async (options: Options, apiUrl: string) =>
 	executeRequest(options, apiUrl)
 );
 
-const executeRequest = async (options: Options, apiUrl: string) => {
+const executeRequest = async (options: Options, _apiUrl: string) => {
+	const localBaseUrl = import.meta.env.VITE_VENDURE_LOCAL_URL;
+	const shopApiUrl = `${localBaseUrl.replace(/\/$/, '')}/shop-api`;
 	let httpResponse: Response = new Response();
 	try {
-		httpResponse = await fetch(apiUrl, options);
+		httpResponse = await fetch(shopApiUrl, options);
 	} catch (error) {
-		console.error(`Could not fetch from ${apiUrl}. Reason: ${error}`);
+		console.error(`Could not fetch from ${shopApiUrl}. Reason: ${error}`);
 	}
-	return await extractTokenAndData(httpResponse, apiUrl);
+	return await extractTokenAndData(httpResponse, shopApiUrl);
 };
 
 const extractTokenAndData = async (response: Response, apiUrl: string) => {
@@ -85,10 +95,22 @@ const extractTokenAndData = async (response: Response, apiUrl: string) => {
 		return { token: '', data: {} };
 	}
 	const token = response.headers.get(HEADER_AUTH_TOKEN_KEY) || '';
-	const { data, errors } = await response.json();
+	let parsed;
+	try {
+		parsed = await response.json();
+		console.log('[extractTokenAndData] Backend response:', parsed);
+	} catch (e) {
+		console.error('[extractTokenAndData] Failed to parse JSON:', e);
+		return { token, data: {} };
+	}
+	const { data, errors } = parsed || {};
 	if (errors && !data) {
 		// e.g. API access related errors, like auth issues.
 		throw new Error(errors[0].message);
+	}
+	if (!data) {
+		console.warn('[extractTokenAndData] No data returned from backend:', parsed);
+		return { token, data: {} };
 	}
 	return { token, data };
 };
