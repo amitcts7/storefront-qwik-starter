@@ -1,5 +1,5 @@
-import { server$ } from '@qwik.dev/router';
 import { isBrowser } from '@qwik.dev/core/build';
+import { server$ } from '@qwik.dev/router';
 import type { DocumentNode } from 'graphql/index';
 import { print } from 'graphql/index';
 import { AUTH_TOKEN, DEV_API, HEADER_AUTH_TOKEN_KEY, PROD_API } from '~/constants';
@@ -53,7 +53,11 @@ const execute = async <R, V = Record<string, any>>(
 		console.warn('[execute] Response data is undefined:', response);
 		return {} as R;
 	}
-	if (typeof response.data === 'object' && 'activeOrder' in response.data && !response.data.activeOrder) {
+	if (
+		typeof response.data === 'object' &&
+		'activeOrder' in response.data &&
+		!response.data.activeOrder
+	) {
 		console.warn('[execute] activeOrder is undefined in response.data:', response.data);
 	}
 
